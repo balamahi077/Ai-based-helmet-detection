@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Helmet Detection</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .video-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .video-feed {
+            width: 100%;
+            height: 500px;
+            object-fit: cover;
+            background: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .live-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .detection-log {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9rem;
+        }
+
+        .log-item:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: #666;
+            font-size: 0.8rem;
+        }
+
+        .log-status {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-left: 10px;
+        }
+
+        .status-helmet {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-no-helmet {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .camera-selector {
+            margin-bottom: 20px;
+        }
+
+        .camera-selector select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: white;
+        }
+
+        .camera-selector select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+        }
+
+        .status-dot.active {
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .back-link a {
+            color: white;
+            text-decoration: none;
+            font-size: 1.1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link a:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .video-feed {
+                height: 300px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .live-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-camera"></i> Real-time Helmet Detection</h1>
+            <p>Live camera feed analysis for workplace safety monitoring</p>
+        </div>
+
+        <div class="main-content">
+            <div class="video-section">
+                <div class="camera-selector">
+                    <label for="cameraSelect">Select Camera:</label>
+                    <select id="cameraSelect">
+                        <option value="">Loading cameras...</option>
+                    </select>
+                </div>
+
+                <div class="video-container">
+                    <div class="video-feed" id="videoFeed">
+                        <div style="text-align: center;">
+                            <i class="fas fa-camera" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;"></i>
+                            <p>Camera feed will appear here</p>
+                            <p style="font-size: 0.9rem; opacity: 0.7;">Click "Start Detection" to begin</p>
+                        </div>
+                    </div>
+                    <div class="video-overlay" id="videoOverlay">
+                        Status: <span id="statusText">Ready</span>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button class="btn btn-success" id="startBtn" onclick="startDetection()">
+                        <i class="fas fa-play"></i> Start Detection
+                    </button>
+                    <button class="btn btn-danger" id="stopBtn" onclick="stopDetection()" disabled>
+                        <i class="fas fa-stop"></i> Stop Detection
+                    </button>
+                    <button class="btn" id="captureBtn" onclick="captureFrame()" disabled>
+                        <i class="fas fa-camera"></i> Capture Frame
+                    </button>
+                    <button class="btn" onclick="downloadLog()">
+                        <i class="fas fa-download"></i> Download Log
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="card">
+                    <h3><i class="fas fa-chart-line"></i> Live Statistics</h3>
+                    <div class="status-indicator">
+                        <div class="status-dot" id="statusDot"></div>
+                        <span id="connectionStatus">Disconnected</span>
+                    </div>
+                    <div class="live-stats">
+                        <div class="stat-item">
+                            <div class="stat-number" id="liveTotalDetections">0</div>
+                            <div class="stat-label">Total Detections</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="liveComplianceRate">0%</div>
+                            <div class="stat-label">Compliance Rate</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="liveHelmetCount">0</div>
+                            <div class="stat-label">Helmets Detected</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="liveNoHelmetCount">0</div>
+                            <div class="stat-label">No Helmets</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3><i class="fas fa-list"></i> Detection Log</h3>
+                    <div class="detection-log" id="detectionLog">
+                        <div class="log-item">
+                            <div class="log-time">System ready</div>
+                            <div>Waiting for detection to start...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3><i class="fas fa-cog"></i> Settings</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label for="confidenceThreshold">Confidence Threshold:</label>
+                        <input type="range" id="confidenceThreshold" min="0.1" max="0.9" step="0.1" value="0.5" style="width: 100%; margin-top: 5px;">
+                        <span id="confidenceValue">0.5</span>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>
+                            <input type="checkbox" id="enableAlerts" checked> Enable Alerts
+                        </label>
+                    </div>
+                    <div>
+                        <label>
+                            <input type="checkbox" id="saveFrames" checked> Save Detection Frames
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="back-link">
+            <a href="/">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <script>
+        let isDetecting = false;
+        let detectionLog = [];
+        let liveStats = {
+            totalDetections: 0,
+            helmetCount: 0,
+            noHelmetCount: 0
+        };
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCameraSelector();
+            setupEventListeners();
+            updateStatus('Ready', false);
+        });
+
+        function initializeCameraSelector() {
+            const cameraSelect = document.getElementById('cameraSelect');
+            
+            // In a real implementation, you would enumerate available cameras
+            // For now, we'll simulate camera detection
+            setTimeout(() => {
+                cameraSelect.innerHTML = `
+                    <option value="default">Default Camera</option>
+                    <option value="front">Front Camera</option>
+                    <option value="back">Back Camera</option>
+                `;
+            }, 1000);
+        }
+
+        function setupEventListeners() {
+            const confidenceSlider = document.getElementById('confidenceThreshold');
+            const confidenceValue = document.getElementById('confidenceValue');
+            
+            confidenceSlider.addEventListener('input', function() {
+                confidenceValue.textContent = this.value;
+            });
+        }
+
+        function startDetection() {
+            if (isDetecting) return;
+            
+            isDetecting = true;
+            updateStatus('Detecting', true);
+            
+            // Update button states
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('captureBtn').disabled = false;
+            
+            // Simulate video feed
+            simulateVideoFeed();
+            
+            // Start detection simulation
+            startDetectionSimulation();
+            
+            addLogEntry('Detection started', 'info');
+        }
+
+        function stopDetection() {
+            if (!isDetecting) return;
+            
+            isDetecting = false;
+            updateStatus('Stopped', false);
+            
+            // Update button states
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('captureBtn').disabled = true;
+            
+            // Stop video feed
+            stopVideoFeed();
+            
+            addLogEntry('Detection stopped', 'info');
+        }
+
+        function simulateVideoFeed() {
+            const videoFeed = document.getElementById('videoFeed');
+            
+            // Create a canvas to simulate video feed
+            const canvas = document.createElement('canvas');
+            canvas.width = 640;
+            canvas.height = 480;
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            canvas.style.objectFit = 'cover';
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Clear video feed and add canvas
+            videoFeed.innerHTML = '';
+            videoFeed.appendChild(canvas);
+            
+            // Simulate video feed with moving objects
+            let frameCount = 0;
+            const videoInterval = setInterval(() => {
+                if (!isDetecting) {
+                    clearInterval(videoInterval);
+                    return;
+                }
+                
+                // Draw background
+                ctx.fillStyle = '#2c3e50';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw some moving shapes to simulate people
+                frameCount++;
+                const time = frameCount * 0.1;
+                
+                // Simulate person 1
+                ctx.fillStyle = '#3498db';
+                ctx.fillRect(100 + Math.sin(time) * 50, 200, 40, 80);
+                
+                // Simulate person 2
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(300 + Math.cos(time * 0.7) * 30, 250, 40, 80);
+                
+                // Simulate person 3
+                ctx.fillStyle = '#2ecc71';
+                ctx.fillRect(500 + Math.sin(time * 1.3) * 40, 180, 40, 80);
+                
+                // Add some text
+                ctx.fillStyle = 'white';
+                ctx.font = '16px Arial';
+                ctx.fillText('Live Camera Feed', 10, 30);
+                ctx.fillText(`Frame: ${frameCount}`, 10, 50);
+                
+            }, 100); // 10 FPS
+        }
+
+        function stopVideoFeed() {
+            const videoFeed = document.getElementById('videoFeed');
+            videoFeed.innerHTML = `
+                <div style="text-align: center;">
+                    <i class="fas fa-camera" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;"></i>
+                    <p>Camera feed stopped</p>
+                </div>
+            `;
+        }
+
+        function startDetectionSimulation() {
+            const detectionInterval = setInterval(() => {
+                if (!isDetecting) {
+                    clearInterval(detectionInterval);
+                    return;
+                }
+                
+                // Simulate random detections
+                const random = Math.random();
+                if (random < 0.3) { // 30% chance of detection
+                    simulateDetection();
+                }
+                
+            }, 2000); // Check every 2 seconds
+        }
+
+        function simulateDetection() {
+            const hasHelmet = Math.random() > 0.4; // 60% chance of helmet
+            const confidence = 0.5 + Math.random() * 0.4; // 0.5 to 0.9
+            
+            // Update statistics
+            liveStats.totalDetections++;
+            if (hasHelmet) {
+                liveStats.helmetCount++;
+                addLogEntry(`Helmet detected (${(confidence * 100).toFixed(1)}% confidence)`, 'helmet');
+            } else {
+                liveStats.noHelmetCount++;
+                addLogEntry(`No helmet detected (${(confidence * 100).toFixed(1)}% confidence)`, 'no-helmet');
+                
+                // Show alert if enabled
+                if (document.getElementById('enableAlerts').checked) {
+                    showAlert('Safety Alert: Person detected without helmet!');
+                }
+            }
+            
+            updateLiveStats();
+        }
+
+        function updateLiveStats() {
+            document.getElementById('liveTotalDetections').textContent = liveStats.totalDetections;
+            document.getElementById('liveHelmetCount').textContent = liveStats.helmetCount;
+            document.getElementById('liveNoHelmetCount').textContent = liveStats.noHelmetCount;
+            
+            const complianceRate = liveStats.totalDetections > 0 
+                ? (liveStats.helmetCount / liveStats.totalDetections * 100).toFixed(1)
+                : 0;
+            document.getElementById('liveComplianceRate').textContent = complianceRate + '%';
+        }
+
+        function updateStatus(status, isActive) {
+            document.getElementById('statusText').textContent = status;
+            document.getElementById('connectionStatus').textContent = status;
+            
+            const statusDot = document.getElementById('statusDot');
+            if (isActive) {
+                statusDot.classList.add('active');
+            } else {
+                statusDot.classList.remove('active');
+            }
+        }
+
+        function addLogEntry(message, type = 'info') {
+            const log = document.getElementById('detectionLog');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const logItem = document.createElement('div');
+            logItem.className = 'log-item';
+            
+            let statusClass = '';
+            if (type === 'helmet') statusClass = 'status-helmet';
+            else if (type === 'no-helmet') statusClass = 'status-no-helmet';
+            else if (type === 'warning') statusClass = 'status-warning';
+            
+            logItem.innerHTML = `
+                <div class="log-time">${timestamp}</div>
+                <div>
+                    ${message}
+                    ${statusClass ? `<span class="log-status ${statusClass}">${type.toUpperCase()}</span>` : ''}
+                </div>
+            `;
+            
+            log.insertBefore(logItem, log.firstChild);
+            
+            // Keep only last 50 entries
+            while (log.children.length > 50) {
+                log.removeChild(log.lastChild);
+            }
+            
+            // Store in detection log array
+            detectionLog.unshift({
+                timestamp: new Date().toISOString(),
+                message: message,
+                type: type
+            });
+        }
+
+        function captureFrame() {
+            addLogEntry('Frame captured and saved', 'info');
+            
+            // In a real implementation, this would capture the current frame
+            // and save it with detection annotations
+        }
+
+        function downloadLog() {
+            const logData = JSON.stringify(detectionLog, null, 2);
+            const blob = new Blob([logData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `helmet-detection-log-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            addLogEntry('Detection log downloaded', 'info');
+        }
+
+        function showAlert(message) {
+            // Create a temporary alert
+            const alert = document.createElement('div');
+            alert.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #f8d7da;
+                color: #721c24;
+                padding: 15px 20px;
+                border-radius: 5px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+            `;
+            alert.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i>
+                ${message}
+            `;
+            
+            document.body.appendChild(alert);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                alert.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        alert.parentNode.removeChild(alert);
+                    }
+                }, 300);
+            }, 5000);
+        }
+
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

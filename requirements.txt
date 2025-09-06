@@ -1,0 +1,15 @@
+opencv-python
+tensorflow
+numpy
+Pillow
+flask
+flask-cors
+werkzeug
+matplotlib
+seaborn
+ultralytics
+torch
+torchvision
+requests
+python-dotenv
+python-pptx
